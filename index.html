@@ -835,9 +835,11 @@
         state.curNY += (state.targetNY - state.curNY) * 0.1;
         const rotY = (state.curNX - 0.5) * 26;
         const rotX = -(state.curNY - 0.5) * 18;
+        const shiftX = isCoarsePointer ? (state.curNX - 0.5) * 14 : 0;
+        const shiftY = isCoarsePointer ? (state.curNY - 0.5) * 10 : 0;
         state.curRotX = rotX;
         state.curRotY = rotY;
-        state.card.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        state.card.style.transform = `translate3d(${shiftX}px, ${shiftY}px, 0) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
         const tiltStrength = Math.sqrt(rotX * rotX + rotY * rotY);
         const targetHolo = state.hovering ? Math.min(1, tiltStrength / 5) : 0;
         const targetLight = state.hovering ? Math.min(1, tiltStrength / 3) : 0;
@@ -915,7 +917,7 @@
         state.curNY = 0.5;
         state.holoAlpha = 0;
         state.lightAlpha = 0;
-        state.card.style.transform = "rotateX(0deg) rotateY(0deg)";
+        state.card.style.transform = "translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg)";
         stopScratchSound(state);
         state.card.classList.remove("is-jolting");
       }
