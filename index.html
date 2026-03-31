@@ -385,6 +385,8 @@
       const chipBurstMin = isCoarsePointer ? 2 : 4;
       const chipBurstMax = isCoarsePointer ? 5 : 9;
       const confettiCount = isCoarsePointer ? 120 : 280;
+      const brushBaseRadius = isCoarsePointer ? 48 : 70;
+      const brushNoiseAmplitude = isCoarsePointer ? 14 : 22;
 
       const chipPalette = [
         "#c8c8c8",
@@ -533,8 +535,8 @@
           phases,
           normAmps,
           lumps,
-          baseR: 70,
-          noiseAmp: 22,
+          baseR: brushBaseRadius,
+          noiseAmp: brushNoiseAmplitude,
         };
       }
 
