@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scratch Card</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f1f2f4;
+        --card: #000000;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
+
+      .frame {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 28px;
+        position: relative;
+        perspective: 1200px;
+      }
+
+      .card-wrap {
+        width: 720px;
+        height: 530px;
+        border-radius: 48px;
+        background: var(--card);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.28),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        transform-style: preserve-3d;
+        position: relative;
+      }
+
+      .card-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 48px;
+        position: relative;
+        transform-style: preserve-3d;
+      }
+
+      .header {
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 3;
+      }
+
+      .header img {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+      }
+
+      .header span {
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--white);
+        letter-spacing: -0.02em;
+      }
+
+      .reward {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        margin-top: 49px;
+        font-size: 140px;
+        font-weight: 600;
+        letter-spacing: -0.05em;
+        color: var(--white);
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .overlay-wrap {
+        width: 688px;
+        height: 400px;
+        border-radius: 24px;
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        overflow: hidden;
+        z-index: 2;
+      }
+
+      .overlay-wrap canvas,
+      .overlay-wrap .scratch-label {
+        position: absolute;
+        inset: 0;
+      }
+
+      #scratchCanvas {
+        z-index: 1;
+      }
+
+      #holoCanvas {
+        z-index: 2;
+      }
+
+      #lightCanvas {
+        z-index: 3;
+      }
+
+      .scratch-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.85),
+          rgba(180, 180, 180, 0.6),
+          rgba(255, 255, 255, 0.8)
+        );
+        -webkit-background-clip: text;
+        color: transparent;
+        transition: opacity 0.35s ease;
+        pointer-events: none;
+      }
+
+      .particle-layer,
+      .confetti-layer {
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .particle-layer {
+        inset: -80px;
+        z-index: 4;
+      }
+
+      .confetti-layer {
+        inset: -300px;
+        z-index: 5;
+      }
+
+      .restart-btn {
+        position: absolute;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: transparent;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 50px;
+        padding: 10px 22px;
+        font-size: 14px;
+        font-weight: 400;
+        color: rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="card-wrap" id="card">
+        <div class="card-inner" id="cardInner">
+          <div class="header">
+            <img
+              src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc3MicgaGVpZ2h0PSc3Micgdmlld0JveD0nMCAwIDcyIDcyJz4KPHJlY3Qgd2lkdGg9JzcyJyBoZWlnaHQ9JzcyJyByeD0nMTgnIGZpbGw9JyMxMTEnLz4KPGNpcmNsZSBjeD0nMzYnIGN5PSczNicgcj0nMjAnIGZpbGw9J3VybCgjZyknLz4KPHBhdGggZD0nTTI2IDM3bDggOCAxMi0xNicgc3Ryb2tlPScjZmZmJyBzdHJva2Utd2lkdGg9JzYnIGZpbGw9J25vbmUnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPgo8ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9J2cnIHgxPScwJyB5MT0nMCcgeDI9JzEnIHkyPScxJz4KPHN0b3Agb2Zmc2V0PScwJScgc3RvcC1jb2xvcj0nIzAwRTVGRicvPjxzdG9wIG9mZnNldD0nMTAwJScgc3RvcC1jb2xvcj0nI0JGMDBGRicvPgo8L2xpbmVhckdyYWRpZW50PjwvZGVmcz4KPC9zdmc+"
+              alt="Logo"
+            />
+            <span>Claim your reward</span>
+          </div>
+
+          <div class="reward">$25</div>
+
+          <div class="overlay-wrap" id="overlay">
+            <canvas id="scratchCanvas"></canvas>
+            <canvas id="holoCanvas"></canvas>
+            <canvas id="lightCanvas"></canvas>
+            <div class="scratch-label" id="scratchLabel">Scratch to reveal</div>
+          </div>
+
+          <div class="particle-layer">
+            <canvas id="chipCanvas"></canvas>
+          </div>
+          <div class="confetti-layer">
+            <canvas id="confettiCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+      <button class="restart-btn" id="restartBtn">Restart</button>
+    </div>
+
+    <script>
+      const cardInner = document.getElementById("cardInner");
+      const overlay = document.getElementById("overlay");
+      const card = document.getElementById("card");
+      const frame = document.querySelector(".frame");
+      const scratchCanvas = document.getElementById("scratchCanvas");
+      const holoCanvas = document.getElementById("holoCanvas");
+      const lightCanvas = document.getElementById("lightCanvas");
+      const chipCanvas = document.getElementById("chipCanvas");
+      const confettiCanvas = document.getElementById("confettiCanvas");
+      const scratchLabel = document.getElementById("scratchLabel");
+      const restartBtn = document.getElementById("restartBtn");
+
+      const OW = 688;
+      const OH = 400;
+      const cardW = 720;
+      const cardH = 530;
+      const borderRadius = 24;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+      const scratchCtx = scratchCanvas.getContext("2d");
+      const holoCtx = holoCanvas.getContext("2d");
+      const lightCtx = lightCanvas.getContext("2d");
+      const chipCtx = chipCanvas.getContext("2d");
+      const confettiCtx = confettiCanvas.getContext("2d");
+
+      let isScratching = false;
+      let lastPoint = null;
+      let scratchProgress = 0;
+      let confettiFired = false;
+      let scratchLabelHidden = false;
+
+      let targetNX = 0.5;
+      let targetNY = 0.5;
+      let curNX = 0.5;
+      let curNY = 0.5;
+      let curRotX = 0;
+      let curRotY = 0;
+      let hovering = false;
+      let holoAlpha = 0;
+      let lightAlpha = 0;
+
+      const chips = [];
+      const confetti = [];
+
+      const chipPalette = [
+        "#c8c8c8",
+        "#e8e8e8",
+        "#a0a0a0",
+        "#f0f0f0",
+        "#d0d0d0",
+        "#b8b8b8",
+        "#ffffff",
+        "#888888",
+      ];
+
+      const confettiColors = [
+        "#BF00FF",
+        "#9B00FF",
+        "#FF00C8",
+        "#FF3DCA",
+        "#00FF41",
+        "#39FF14",
+        "#00E5FF",
+        "#00BFFF",
+        "#FF00FF",
+        "#CC00FF",
+      ];
+
+      function setupCanvas(canvas, w, h) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return ctx;
+      }
+
+      function resizeCanvases() {
+        setupCanvas(scratchCanvas, OW, OH);
+        setupCanvas(holoCanvas, OW, OH);
+        setupCanvas(lightCanvas, OW, OH);
+        setupCanvas(chipCanvas, OW + 160, OH + 160);
+        setupCanvas(confettiCanvas, cardW + 600, cardH + 600);
+      }
+
+      function drawScratchLayer() {
+        scratchCtx.clearRect(0, 0, OW, OH);
+        const grad = scratchCtx.createLinearGradient(0, 0, OW, OH);
+        grad.addColorStop(0.1, "#1A1A1A");
+        grad.addColorStop(0.5, "#4D4D4D");
+        grad.addColorStop(0.8, "#0D0D0D");
+
+        scratchCtx.beginPath();
+        scratchCtx.roundRect(0, 0, OW, OH, borderRadius);
+        scratchCtx.fillStyle = grad;
+        scratchCtx.fill();
+
+        scratchCtx.fillStyle = "rgba(255,255,255,0.15)";
+        for (let y = 14; y < OH; y += 18) {
+          for (let x = 14; x < OW; x += 18) {
+            scratchCtx.beginPath();
+            scratchCtx.arc(x, y, 1.8, 0, Math.PI * 2);
+            scratchCtx.fill();
+          }
+        }
+      }
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function generateBlobPath(ctx, x, y) {
+        const harmonics = [1, 2, 3, 5, 7, 11, 13];
+        const phases = harmonics.map(() => Math.random() * Math.PI * 2);
+        const amps = harmonics.map((_, i) => 1 / (i * 0.5 + 1));
+        const ampSum = amps.reduce((a, b) => a + b, 0);
+        const normAmps = amps.map((a) => a / ampSum);
+        const baseR = 70;
+        const noiseAmp = 22;
+        const lumps = [];
+        const lumpCount = Math.floor(rand(4, 9));
+        for (let i = 0; i < lumpCount; i += 1) {
+          lumps.push({
+            angle: rand(0, Math.PI * 2),
+            height: rand(10, 30),
+            spread: rand(0.15, 0.4),
+          });
+        }
+
+        const points = [];
+        const steps = 80;
+        for (let i = 0; i < steps; i += 1) {
+          const t = (i / steps) * Math.PI * 2;
+          let noise = 0;
+          for (let j = 0; j < harmonics.length; j += 1) {
+            noise +=
+              normAmps[j] *
+              Math.sin(harmonics[j] * t + phases[j]) *
+              noiseAmp;
+          }
+          let lumpNoise = 0;
+          for (const lump of lumps) {
+            let d = Math.abs(t - lump.angle);
+            d = Math.min(d, Math.PI * 2 - d);
+            const influence = Math.exp(-(d * d) / (lump.spread * lump.spread));
+            lumpNoise += influence * lump.height;
+          }
+          const r = baseR + noise + lumpNoise;
+          const px = x + Math.cos(t) * r;
+          const py = y + Math.sin(t) * r * 0.82;
+          points.push({ x: px, y: py });
+        }
+
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i += 1) {
+          const p0 = points[i];
+          const p1 = points[(i + 1) % points.length];
+          const mid = { x: (p0.x + p1.x) * 0.5, y: (p0.y + p1.y) * 0.5 };
+          if (i === 0) {
+            ctx.moveTo(mid.x, mid.y);
+          } else {
+            ctx.quadraticCurveTo(p0.x, p0.y, mid.x, mid.y);
+          }
+        }
+        ctx.closePath();
+      }
+
+      function scratchAt(x, y) {
+        scratchCtx.save();
+        scratchCtx.globalCompositeOperation = "destination-out";
+        scratchCtx.imageSmoothingEnabled = false;
+        generateBlobPath(scratchCtx, x, y);
+        scratchCtx.fill();
+        scratchCtx.restore();
+      }
+
+      function spawnChips(x, y) {
+        const count = Math.floor(rand(4, 9));
+        for (let i = 0; i < count; i += 1) {
+          const angle = rand(0, Math.PI * 2);
+          const speed = rand(3, 9);
+          chips.push({
+            x: x + 80,
+            y: y + 80,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            w: rand(3, 9),
+            h: rand(2, 6),
+            color: chipPalette[Math.floor(Math.random() * chipPalette.length)],
+            life: 1,
+          });
+        }
+      }
+
+      function spawnConfetti() {
+        const originX = cardW / 2 + 300;
+        const originY = cardH / 2 + 300;
+        for (let i = 0; i < 280; i += 1) {
+          const angle = rand(0, Math.PI * 2);
+          const speed = rand(6, 20);
+          confetti.push({
+            x: originX,
+            y: originY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3,
+            w: rand(8, 22),
+            h: rand(4, 13),
+            rot: rand(-0.25, 0.25),
+            color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+            life: 1,
+            decay: rand(0.003, 0.007),
+          });
+        }
+      }
+
+      function updateParticles() {
+        chipCtx.clearRect(0, 0, OW + 160, OH + 160);
+        for (let i = chips.length - 1; i >= 0; i -= 1) {
+          const chip = chips[i];
+          chip.vy += 0.12;
+          chip.vx *= 0.95;
+          chip.vy *= 0.95;
+          chip.x += chip.vx;
+          chip.y += chip.vy;
+          chip.life -= rand(0.018, 0.04);
+          if (chip.life <= 0) {
+            chips.splice(i, 1);
+            continue;
+          }
+          chipCtx.globalAlpha = Math.max(0, chip.life);
+          chipCtx.fillStyle = chip.color;
+          chipCtx.fillRect(chip.x, chip.y, chip.w, chip.h);
+        }
+        chipCtx.globalAlpha = 1;
+
+        confettiCtx.clearRect(0, 0, cardW + 600, cardH + 600);
+        for (let i = confetti.length - 1; i >= 0; i -= 1) {
+          const piece = confetti[i];
+          piece.vy += 0.1;
+          piece.vx *= 0.995;
+          piece.vy *= 0.995;
+          piece.x += piece.vx;
+          piece.y += piece.vy;
+          piece.life -= piece.decay;
+          if (piece.life <= 0) {
+            confetti.splice(i, 1);
+            continue;
+          }
+          confettiCtx.save();
+          confettiCtx.translate(piece.x, piece.y);
+          confettiCtx.rotate(piece.rot);
+          confettiCtx.globalAlpha = Math.max(0, piece.life);
+          confettiCtx.fillStyle = piece.color;
+          confettiCtx.fillRect(-piece.w / 2, -piece.h / 2, piece.w, piece.h);
+          confettiCtx.restore();
+        }
+        confettiCtx.globalAlpha = 1;
+      }
+
+      function updateHolo() {
+        holoCtx.clearRect(0, 0, OW, OH);
+        if (holoAlpha <= 0.001) {
+          return;
+        }
+        const time = Date.now() * 0.016;
+        const nx = curNX;
+        const ny = curNY;
+        const hue1 = (nx * 320 + ny * 160 + time) % 360;
+        const hue2 = hue1 + 90;
+        const hue3 = hue1 + 190;
+        const hue4 = hue1 + 270;
+
+        holoCtx.save();
+        holoCtx.globalAlpha = holoAlpha;
+        holoCtx.beginPath();
+        holoCtx.roundRect(0, 0, OW, OH, borderRadius);
+        holoCtx.clip();
+
+        const grad1 = holoCtx.createRadialGradient(
+          nx * OW * 0.8 + OW * 0.1,
+          ny * OH * 0.8 + OH * 0.1,
+          0,
+          nx * OW * 0.8 + OW * 0.1,
+          ny * OH * 0.8 + OH * 0.1,
+          OW * 0.9
+        );
+        grad1.addColorStop(0, `hsla(${hue1},100%,72%,0.95)`);
+        grad1.addColorStop(0.2, `hsla(${hue2},95%,60%,0.75)`);
+        grad1.addColorStop(0.5, `hsla(${hue3},85%,45%,0.4)`);
+        grad1.addColorStop(0.8, `hsla(${hue4},70%,30%,0.15)`);
+        grad1.addColorStop(1, "hsla(0,0%,0%,0)");
+        holoCtx.fillStyle = grad1;
+        holoCtx.fillRect(0, 0, OW, OH);
+
+        holoCtx.globalCompositeOperation = "screen";
+        const grad2 = holoCtx.createRadialGradient(
+          (1 - nx) * OW,
+          (1 - ny) * OH,
+          0,
+          (1 - nx) * OW,
+          (1 - ny) * OH,
+          OW * 0.7
+        );
+        grad2.addColorStop(0, `hsla(${hue1 + 180},100%,70%,0.45)`);
+        grad2.addColorStop(0.35, `hsla(${hue2 + 180},90%,55%,0.2)`);
+        grad2.addColorStop(0.7, `hsla(${hue3 + 180},70%,40%,0.05)`);
+        grad2.addColorStop(1, "hsla(0,0%,0%,0)");
+        holoCtx.fillStyle = grad2;
+        holoCtx.fillRect(0, 0, OW, OH);
+
+        holoCtx.globalCompositeOperation = "destination-in";
+        holoCtx.drawImage(scratchCanvas, 0, 0, OW, OH);
+        holoCtx.restore();
+      }
+
+      function updateLight() {
+        lightCtx.clearRect(0, 0, OW, OH);
+        if (lightAlpha <= 0.001) {
+          return;
+        }
+        const nx = curNX;
+        const ny = curNY;
+        const cx = nx * OW;
+        const cy = ny * OH;
+        const grad = lightCtx.createRadialGradient(cx, cy, 0, cx, cy, 160);
+        grad.addColorStop(0, `rgba(255,255,255,${0.4 * lightAlpha})`);
+        grad.addColorStop(0.3, `rgba(255,255,255,${0.1 * lightAlpha})`);
+        grad.addColorStop(0.7, `rgba(255,255,255,${0.02 * lightAlpha})`);
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        lightCtx.beginPath();
+        lightCtx.roundRect(0, 0, OW, OH, borderRadius);
+        lightCtx.fillStyle = grad;
+        lightCtx.fill();
+      }
+
+      function updateTilt() {
+        curNX += (targetNX - curNX) * 0.1;
+        curNY += (targetNY - curNY) * 0.1;
+        const rotY = (curNX - 0.5) * 20;
+        const rotX = -(curNY - 0.5) * 14;
+        curRotX = rotX;
+        curRotY = rotY;
+        cardInner.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        const tiltStrength = Math.sqrt(rotX * rotX + rotY * rotY);
+        const targetHolo = hovering ? Math.min(1, tiltStrength / 5) : 0;
+        const targetLight = hovering ? Math.min(1, tiltStrength / 3) : 0;
+        holoAlpha += (targetHolo - holoAlpha) * 0.15;
+        lightAlpha += (targetLight - lightAlpha) * 0.15;
+      }
+
+      function getScratchProgress() {
+        const img = scratchCtx.getImageData(0, 0, OW, OH).data;
+        let cleared = 0;
+        for (let i = 3; i < img.length; i += 4) {
+          if (img[i] === 0) {
+            cleared += 1;
+          }
+        }
+        scratchProgress = cleared / (img.length / 4);
+        if (!scratchLabelHidden) {
+          scratchLabel.style.opacity = Math.max(0, 1 - scratchProgress * 2);
+        }
+        if (!confettiFired && scratchProgress >= 0.4) {
+          confettiFired = true;
+          spawnConfetti();
+        }
+      }
+
+      let lastMeasure = 0;
+
+      function onPointerMove(e) {
+        const rect = overlay.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (isScratching) {
+          scratchAt(x, y);
+          spawnChips(x, y);
+          if (lastPoint) {
+            const dx = x - lastPoint.x;
+            const dy = y - lastPoint.y;
+            const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+            const step = 0.5;
+            for (let i = 0; i < dist; i += step) {
+              const ix = lastPoint.x + (dx * i) / dist;
+              const iy = lastPoint.y + (dy * i) / dist;
+              scratchAt(ix, iy);
+            }
+          }
+          lastPoint = { x, y };
+          const now = Date.now();
+          if (now - lastMeasure > 180) {
+            lastMeasure = now;
+            getScratchProgress();
+          }
+        }
+      }
+
+      function onPointerDown(e) {
+        isScratching = true;
+        lastPoint = null;
+        if (!scratchLabelHidden) {
+          scratchLabelHidden = true;
+          scratchLabel.style.opacity = 0;
+        }
+        onPointerMove(e);
+      }
+
+      function onPointerUp() {
+        if (isScratching) {
+          getScratchProgress();
+        }
+        isScratching = false;
+        lastPoint = null;
+      }
+
+      function loop() {
+        updateTilt();
+        updateHolo();
+        updateLight();
+        updateParticles();
+        requestAnimationFrame(loop);
+      }
+
+      function resetAll() {
+        drawScratchLayer();
+        holoCtx.clearRect(0, 0, OW, OH);
+        lightCtx.clearRect(0, 0, OW, OH);
+        chipCtx.clearRect(0, 0, OW + 160, OH + 160);
+        confettiCtx.clearRect(0, 0, cardW + 600, cardH + 600);
+        chips.length = 0;
+        confetti.length = 0;
+        scratchProgress = 0;
+        confettiFired = false;
+        scratchLabel.style.opacity = 1;
+        scratchLabelHidden = false;
+        targetNX = 0.5;
+        targetNY = 0.5;
+        curNX = 0.5;
+        curNY = 0.5;
+        holoAlpha = 0;
+        lightAlpha = 0;
+        cardInner.style.transform = "rotateX(0deg) rotateY(0deg)";
+      }
+
+      function init() {
+        resizeCanvases();
+        drawScratchLayer();
+        overlay.addEventListener("pointerdown", onPointerDown);
+        window.addEventListener("pointerup", onPointerUp);
+        overlay.addEventListener("pointermove", onPointerMove);
+        frame.addEventListener("pointermove", (e) => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const inside =
+            x >= 0 && y >= 0 && x <= rect.width && y <= rect.height;
+          hovering = inside;
+          if (inside) {
+            targetNX = Math.min(1, Math.max(0, x / rect.width));
+            targetNY = Math.min(1, Math.max(0, y / rect.height));
+          } else {
+            targetNX = 0.5;
+            targetNY = 0.5;
+          }
+        });
+        restartBtn.addEventListener("click", resetAll);
+        loop();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
