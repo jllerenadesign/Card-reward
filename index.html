@@ -377,7 +377,14 @@
       const cardW = 720;
       const cardH = 530;
       const borderRadius = 24;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+      const dpr = isCoarsePointer
+        ? 1
+        : Math.min(1.5, Math.max(1, window.devicePixelRatio || 1));
+      const blobSteps = isCoarsePointer ? 44 : 80;
+      const chipBurstMin = isCoarsePointer ? 2 : 4;
+      const chipBurstMax = isCoarsePointer ? 5 : 9;
+      const confettiCount = isCoarsePointer ? 120 : 280;
 
       const chipPalette = [
         "#c8c8c8",
@@ -506,14 +513,12 @@
         return min + Math.random() * (max - min);
       }
 
-      function generateBlobPath(ctx, x, y) {
+      function createBrushConfig() {
         const harmonics = [1, 2, 3, 5, 7, 11, 13];
         const phases = harmonics.map(() => Math.random() * Math.PI * 2);
         const amps = harmonics.map((_, i) => 1 / (i * 0.5 + 1));
         const ampSum = amps.reduce((a, b) => a + b, 0);
         const normAmps = amps.map((a) => a / ampSum);
-        const baseR = 70;
-        const noiseAmp = 22;
         const lumps = [];
         const lumpCount = Math.floor(rand(4, 9));
         for (let i = 0; i < lumpCount; i += 1) {
@@ -523,11 +528,28 @@
             spread: rand(0.15, 0.4),
           });
         }
+        return {
+          harmonics,
+          phases,
+          normAmps,
+          lumps,
+          baseR: 70,
+          noiseAmp: 22,
+        };
+      }
 
+      function generateBlobPath(ctx, x, y, brushConfig) {
+        const {
+          harmonics,
+          phases,
+          normAmps,
+          lumps,
+          baseR,
+          noiseAmp,
+        } = brushConfig;
         const points = [];
-        const steps = 80;
-        for (let i = 0; i < steps; i += 1) {
-          const t = (i / steps) * Math.PI * 2;
+        for (let i = 0; i < blobSteps; i += 1) {
+          const t = (i / blobSteps) * Math.PI * 2;
           let noise = 0;
           for (let j = 0; j < harmonics.length; j += 1) {
             noise +=
@@ -567,13 +589,13 @@
         scratchCtx.save();
         scratchCtx.globalCompositeOperation = "destination-out";
         scratchCtx.imageSmoothingEnabled = false;
-        generateBlobPath(scratchCtx, x, y);
+        generateBlobPath(scratchCtx, x, y, state.brushConfig);
         scratchCtx.fill();
         scratchCtx.restore();
       }
 
       function spawnChips(state, x, y) {
-        const count = Math.floor(rand(4, 9));
+        const count = Math.floor(rand(chipBurstMin, chipBurstMax));
         for (let i = 0; i < count; i += 1) {
           const angle = rand(0, Math.PI * 2);
           const speed = rand(3, 9);
@@ -593,7 +615,7 @@
       function spawnConfetti(state) {
         const originX = cardW / 2 + 300;
         const originY = cardH / 2 + 300;
-        for (let i = 0; i < 280; i += 1) {
+        for (let i = 0; i < confettiCount; i += 1) {
           const angle = rand(0, Math.PI * 2);
           const speed = rand(6, 20);
           state.confetti.push({
@@ -623,7 +645,7 @@
           chip.vy *= 0.95;
           chip.x += chip.vx;
           chip.y += chip.vy;
-          chip.life -= rand(0.018, 0.04);
+          chip.life -= isCoarsePointer ? 0.03 : rand(0.018, 0.04);
           if (chip.life <= 0) {
             state.chips.splice(i, 1);
             continue;
@@ -634,6 +656,10 @@
         }
         chipCtx.globalAlpha = 1;
 
+        if (state.confetti.length === 0) {
+          confettiCtx.clearRect(0, 0, cardW + 600, cardH + 600);
+          return;
+        }
         confettiCtx.clearRect(0, 0, cardW + 600, cardH + 600);
         for (let i = state.confetti.length - 1; i >= 0; i -= 1) {
           const piece = state.confetti[i];
@@ -786,7 +812,7 @@
             const dx = x - state.lastPoint.x;
             const dy = y - state.lastPoint.y;
             const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-            const step = 0.5;
+            const step = isCoarsePointer ? 1.4 : 0.5;
             for (let i = 0; i < dist; i += step) {
               const ix = state.lastPoint.x + (dx * i) / dist;
               const iy = state.lastPoint.y + (dy * i) / dist;
@@ -853,6 +879,7 @@
           confetti: [],
           isScratching: false,
           lastPoint: null,
+          brushConfig: null,
           scratchProgress: 0,
           confettiFired: false,
           scratchLabelHidden: false,
@@ -877,6 +904,7 @@
         overlay.addEventListener("pointerdown", (e) => {
           state.isScratching = true;
           state.lastPoint = null;
+          state.brushConfig = createBrushConfig();
           if (!state.scratchLabelHidden) {
             state.scratchLabelHidden = true;
             state.scratchLabel.style.opacity = 0;
@@ -897,6 +925,20 @@
 
       function loop() {
         states.forEach((state) => {
+          const isIdle =
+            !state.hovering &&
+            !state.isScratching &&
+            state.chips.length === 0 &&
+            state.confetti.length === 0 &&
+            Math.abs(state.targetNX - 0.5) < 0.001 &&
+            Math.abs(state.targetNY - 0.5) < 0.001 &&
+            Math.abs(state.curNX - 0.5) < 0.001 &&
+            Math.abs(state.curNY - 0.5) < 0.001 &&
+            state.holoAlpha < 0.002 &&
+            state.lightAlpha < 0.002;
+          if (isIdle) {
+            return;
+          }
           updateTilt(state);
           updateHolo(state);
           updateLight(state);
@@ -913,6 +955,7 @@
             }
             state.isScratching = false;
             state.lastPoint = null;
+            state.brushConfig = null;
             stopScratchSound(state);
           });
         });
