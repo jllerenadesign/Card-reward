@@ -34,7 +34,8 @@
 
       .frame {
         width: 100vw;
-        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -133,6 +134,7 @@
         left: 16px;
         overflow: hidden;
         z-index: 2;
+        touch-action: none;
       }
 
       .overlay-wrap canvas,
@@ -203,7 +205,29 @@
         cursor: pointer;
       }
 
-      @media (max-width: 1540px) {
+      @keyframes micro-jolt {
+        0% {
+          transform: translate3d(0, 0, 0);
+        }
+        25% {
+          transform: translate3d(-1px, 1px, 0);
+        }
+        50% {
+          transform: translate3d(1px, -1px, 0);
+        }
+        75% {
+          transform: translate3d(-1px, 0, 0);
+        }
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+      }
+
+      .card-wrap.card-02.is-jolting .card-inner {
+        animation: micro-jolt 110ms linear;
+      }
+
+      @media (max-width: 780px) {
         html,
         body {
           overflow: auto;
@@ -211,7 +235,7 @@
 
         .frame {
           width: 100%;
-          min-height: 100vh;
+          min-height: 100dvh;
           height: auto;
           justify-content: flex-start;
           padding: 32px 20px 120px;
@@ -398,6 +422,8 @@
           state.audioEl.loop = true;
           state.audioEl.preload = "auto";
           state.audioEl.volume = 0.24;
+          state.audioEl.playsInline = true;
+          state.audioEl.setAttribute("playsinline", "");
         }
         if (!state.audioEl.paused) {
           return;
@@ -420,6 +446,19 @@
         }
         const nextVolume = 0.18 + state.curNX * 0.08 + Math.random() * 0.03;
         state.audioEl.volume = Math.min(0.34, nextVolume);
+      }
+
+      function triggerJolt(state) {
+        if (!state.hasScratchAudio) {
+          return;
+        }
+        state.card.classList.remove("is-jolting");
+        void state.card.offsetWidth;
+        state.card.classList.add("is-jolting");
+        clearTimeout(state.joltTimer);
+        state.joltTimer = setTimeout(() => {
+          state.card.classList.remove("is-jolting");
+        }, 120);
       }
 
       function setupCanvas(canvas, w, h) {
@@ -784,6 +823,7 @@
         state.lightAlpha = 0;
         state.card.style.transform = "rotateX(0deg) rotateY(0deg)";
         stopScratchSound(state);
+        state.card.classList.remove("is-jolting");
       }
 
       function createCardState(card) {
@@ -828,6 +868,7 @@
           lastMeasure: 0,
           hasScratchAudio: card.classList.contains("card-02"),
           audioEl: null,
+          joltTimer: null,
         };
 
         resizeCanvases(state);
@@ -843,6 +884,7 @@
           if (state.hasScratchAudio) {
             startScratchSound(state);
             vibrate([10]);
+            triggerJolt(state);
           }
           onPointerMove(state, e);
         });
