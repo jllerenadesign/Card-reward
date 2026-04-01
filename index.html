@@ -205,6 +205,21 @@
         cursor: pointer;
       }
 
+      .qr-overlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 132px;
+        z-index: 99999;
+        pointer-events: auto;
+      }
+
+      .qr-overlay img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
       @keyframes micro-jolt {
         0% {
           transform: translate3d(0, 0, 0);
@@ -302,10 +317,19 @@
         .scratch-label {
           font-size: clamp(20px, 4.4vw, 28px);
         }
+
+        .qr-overlay {
+          top: 14px;
+          right: 14px;
+          width: 96px;
+        }
       }
     </style>
   </head>
   <body>
+    <div class="qr-overlay" aria-label="QR code to scan">
+      <img src="./qr-code.png" alt="Scan me QR code" />
+    </div>
     <div class="frame">
       <div class="cards">
         <div class="card-wrap card-01">
